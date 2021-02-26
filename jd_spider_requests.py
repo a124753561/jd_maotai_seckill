@@ -21,11 +21,15 @@ from util import (
     open_image
 )
 
+# 增加重试连接次数
+requests.DEFAULT_RETRIES = 5
+
 
 class SpiderSession:
     """
     Session相关操作
     """
+
     def __init__(self):
         self.cookies_dir_path = "./cookies/"
         self.user_agent = global_config.getRaw('config', 'DEFAULT_USER_AGENT')
@@ -34,6 +38,8 @@ class SpiderSession:
 
     def _init_session(self):
         session = requests.session()
+        # 关闭多余的链接
+        session.keep_alive = False
         session.headers = self.get_headers()
         return session
 
@@ -101,6 +107,7 @@ class QrLogin:
     """
     扫码登录
     """
+
     def __init__(self, spider_session: SpiderSession):
         """
         初始化扫码登录
@@ -271,7 +278,7 @@ class JdSeckill(object):
 
         # 初始化信息
         self.sku_id = global_config.getRaw('config', 'sku_id')
-        self.seckill_num = 2
+        self.seckill_num = global_config.getRaw('config', 'seckill_num')
         self.seckill_init_info = dict()
         self.seckill_url = dict()
         self.seckill_order_data = dict()
@@ -302,12 +309,14 @@ class JdSeckill(object):
         """
         用户登陆态校验装饰器。若用户未登陆，则调用扫码登陆
         """
+
         @functools.wraps(func)
         def new_func(self, *args, **kwargs):
             if not self.qrlogin.is_login:
                 logger.info("{0} 需登陆后调用，开始扫码登陆".format(func.__name__))
                 self.login_by_qrcode()
             return func(self, *args, **kwargs)
+
         return new_func
 
     @check_login
@@ -442,6 +451,7 @@ class JdSeckill(object):
         }
         while True:
             resp = self.session.get(url=url, headers=headers, params=payload)
+            logger.info('按钮返回:{}'.format(resp.text))
             resp_json = parse_json(resp.text)
             if resp_json.get('url'):
                 # https://divide.jd.com/user_routing?skuId=8654289&sn=c3f4ececd8461f0e4d7267e96a91e0e0&from=pc
@@ -510,6 +520,7 @@ class JdSeckill(object):
         resp_json = None
         try:
             resp_json = parse_json(resp.text)
+            logger.info('秒杀初始化信息:{}', resp.text)
         except Exception:
             raise SKException('抢购失败，返回信息:{}'.format(resp.text[0: 128]))
 

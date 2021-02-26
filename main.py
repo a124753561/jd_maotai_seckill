@@ -1,7 +1,6 @@
 import sys
 from jd_spider_requests import JdSeckill
 
-
 if __name__ == '__main__':
     a = """
 
@@ -29,4 +28,3 @@ if __name__ == '__main__':
     else:
         print('没有此功能')
         sys.exit(1)
-
